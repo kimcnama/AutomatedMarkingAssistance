@@ -8,8 +8,6 @@ trinity = rgb2gray(trinity);
 box_radius = 35;
 
 for i=1:length(examscripts)
-   
-    
     
     examscript = rgb2gray(examscripts{i});
     
@@ -31,16 +29,6 @@ for i=1:length(examscripts)
         [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
     end
     
-    deviations = [];
-
-    for p=1:length(matches)
-
-        dev = sqrt((matches(p, 3) - mean_position(1))^2 + (matches(p, 4) - mean_position(2))^2);
- 
-        deviations = [deviations, dev];
-
-    end
-    
     %rect = smallest_bounding_rect(examscript, [matches(:, 3) matches(:, 4)]);
     
     blur = imgaussfilt(examscript,1.5);
@@ -48,9 +36,11 @@ for i=1:length(examscripts)
     bw = imbinarize(blur);
     bw = imcomplement(bw);
     
+    %create rect around mean for comparison
     rect = [(mean_position(1)-box_radius) (mean_position(2)-box_radius) ...
         (2*box_radius) (2*box_radius)];
     
+    %remove foreground smaller than 100 pixels
     bw = bwareaopen(bw, 100);
     
     %PixelID 1 = [1,1], 2 = [2, 1]
@@ -61,8 +51,6 @@ for i=1:length(examscripts)
            bw(CC.PixelIdxList{k}) = 0; 
         end
     end
-    
-    %CC = bwconncomp(bw);
     
     %pixlID = find_crest_CC(bw, CC, rect);
     
@@ -88,41 +76,27 @@ for i=1:length(examscripts)
             rect = stats2{r}.BoundingBox;
         end
     end
-    close all
-    imshow(examscript);
-    hold on
-    rectangle('Position', rect, 'EdgeColor', 'r');
-    drawnow
-    hold on
-    for p=1:length(matches(:,1))
-       plot(matches(p, 3),matches(p, 4 ),'--rs','LineWidth',2,'MarkerEdgeColor','k','MarkerFaceColor','g','MarkerSize',15);
-       drawnow
-    end
-    hold off
     
     %Remove Locations Outside of RECT
     %matches = [templateX templateY targetX targetY]
-    new_matches = [];
+    boxed_matches = [];
 
     for m=1:length(matches(:, 1))
         point = [matches(m, 3) matches(m, 4)];
         if inRect(rect, point) == true
-           new_matches = [new_matches; matches(m, :)];
+           boxed_matches = [boxed_matches; matches(m, :)];
         else
             fprintf('Not Inside');
         end
     end
     
+    rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
+    
     close all
     imshow(examscript);
     hold on
     rectangle('Position', rect, 'EdgeColor', 'r');
     drawnow
-    hold on
-    for p=1:length(new_matches(:,1))
-       plot(new_matches(p, 3),new_matches(p, 4 ),'--rs','LineWidth',2,'MarkerEdgeColor','k','MarkerFaceColor','g','MarkerSize',15);
-       drawnow
-    end
     hold off
     
     
