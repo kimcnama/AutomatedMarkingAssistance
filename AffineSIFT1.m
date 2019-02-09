@@ -5,11 +5,40 @@ trinity_loc = '~/mai_project_media/trinity.jpg';
 trinity = imread(trinity_loc);
 trinity = rgb2gray(trinity);
 
+%{
+    CREST:
+    [x y]
+    top left = [98 79]
+    top right = [280  79]
+    bottom right = [280 328]
+    bottom left = [98 328]
+    rect = [98 79 182 249]
+
+    EXAM NUMBER:
+    top left = [496 507]
+    top right = [1157 507]
+    bottom right = [1157 640]
+    bottom left = [496 640]
+    rect = [496 507 661 133]
+
+    GRADES FIELD:
+    top left = [1763 903]
+    top right = [2266  903]
+    bottom right = [2266 2238]
+    bottom left = [1763 2238]
+    rect = [1763 903 503 1335]
+%}
+
 box_radius = 35;
+exam_info = {};
 
 for i=1:length(examscripts)
     
-    examscript = rgb2gray(examscripts{i});
+    fprintf('\n Analysing Image %d / %d \n\n', i, length(examscripts));
+    
+    s.original = examscripts{i};
+    s.flag = 0;
+    examscript = rgb2gray(s.original);
     
     %matches = [j i ...]
     %mean_position = [i j]
@@ -85,40 +114,36 @@ for i=1:length(examscripts)
         point = [matches(m, 3) matches(m, 4)];
         if inRect(rect, point) == true
            boxed_matches = [boxed_matches; matches(m, :)];
-        else
-            fprintf('Not Inside');
         end
     end
     
-    rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
+    if length(boxed_matches) > 0
+        rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
+    else 
+        s.flag = 1;
+    end
+    examnum_rect = find_examnum_rect(rect);    
+    grades_rect = find_grades_rect(rect);
     
-    close all
-    imshow(examscript);
-    hold on
-    rectangle('Position', rect, 'EdgeColor', 'r');
-    drawnow
-    hold off
-    
-    
-    
+    s.cropped_examnum = imcrop(examscript, examnum_rect);
+    s.cropped_grades = imcrop(examscript, grades_rect);
+    exam_info{i} = s;
 end
     
-
 
 
 %%Functions
 
 function rect = smallest_bounding_rect(I, matches)
     
+    rect = [1, 1, 20, 20];
+    if length(matches) < 1
+        return
+    end
+
     %matches = [x y]
     fprintf('Comparing Connected Components...');
     [min_y, min_x] = size(I);
-
-    rect = [1, 1, 20, 20];
-    
-    if length(matches) == 0
-        return 
-    end
     
     max_x = 1;
     max_y = 1;
@@ -142,37 +167,6 @@ function rect = smallest_bounding_rect(I, matches)
     rect = [min_x min_y (max_x-min_x) (max_y-min_y)];
 end
 
-function [pixlIDlist] = find_crest_CC(I, CC, rect)
-    
-    [~,I] = sort(cellfun(@length,CC.PixelIdxList));
-    CC.PixelIdxList = CC.PixelIdxList(I);
-    
-
-    [cols, rows] = size(I);
-    box=30;
-    for i=1:length(CC.PixelIdxList)
-        
-        pixels = CC.PixelIdxList{i};
-        
-        for j=1:length(pixels)
-           
-            x = ceil(pixels(j)/cols);
-            y = rem((pixels(j)/cols), cols);
-            if y == 0
-                y = cols;
-            end
-            
-            if bboxOverlapRatio(rect, [x y box box]) > 0
-               pixlIDlist = i;
-               return  
-            end
-            
-        end
-        
-    end
-
-end
-
 function [bool] = inRect(rect, point)
     %[x y w h]
     x1 = rect(1);
@@ -189,3 +183,47 @@ function [bool] = inRect(rect, point)
     end
 
 end
+
+function [rect] = find_examnum_rect(crest_rect)
+    
+    %originials:
+    %x1const = 2.1868;
+    %y1const = 1.7189;
+    %x2const = 5.8187;
+    %y2const = 2.253;
+    x1const = 2.2;
+    y1const = 1.62;
+    x2const = 6.6;
+    y2const = 2.3;
+    
+    x = crest_rect(1) + x1const*crest_rect(3);
+    y = crest_rect(2) + y1const*crest_rect(4);
+    x2 = crest_rect(1) + x2const*crest_rect(3);
+    y2 = crest_rect(2) + y2const*crest_rect(4);
+    
+    rect = [x y (x2-x) (y2-y)];
+
+end
+
+function [rect] = find_grades_rect(crest_rect)
+    
+    %originals
+    %x1const = 9.1484;
+    %y1const = 3.3092;
+    %x2const = 11.9176;
+    %y2const = 8.6706;
+    
+    x1const = 9.3;
+    y1const = 3.9;
+    x2const = 13.2;
+    y2const = 8.4;
+    
+    x = crest_rect(1) + x1const*crest_rect(3);
+    y = crest_rect(2) + y1const*crest_rect(4);
+    x2 = crest_rect(1) + x2const*crest_rect(3);
+    y2 = crest_rect(2) + y2const*crest_rect(4);
+    
+    rect = [x y (x2-x) (y2-y)];
+
+end
+

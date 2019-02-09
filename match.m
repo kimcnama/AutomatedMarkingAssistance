@@ -94,6 +94,11 @@ end
 %rot_angle = rot_angle * 180/pi;
 
 hold off;
+
+if disp == false
+    close all
+end
+
 num = sum(match > 0);
 fprintf('Found %d matches.\n', num);
  
