@@ -32,8 +32,8 @@ trinity = rgb2gray(trinity);
 box_radius = 35;
 exam_info = {};
 
-for i=1:length(examscripts)
-    
+%for i=1:length(examscripts)
+    i=4;
     fprintf('\n Analysing Image %d / %d \n\n', i, length(examscripts));
     
     s.original = examscripts{i};
@@ -47,88 +47,100 @@ for i=1:length(examscripts)
     if length(matches) == 0
         [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
     end
- 
-    [tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
     
-    examscript = imwarp(examscript,tform);
-    
-    [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
-    
-    if length(matches) == 0
-        [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
-    end
-    
-    %rect = smallest_bounding_rect(examscript, [matches(:, 3) matches(:, 4)]);
-    
-    blur = imgaussfilt(examscript,1.5);
-    
-    bw = imbinarize(blur);
-    bw = imcomplement(bw);
-    
-    %create rect around mean for comparison
-    rect = [(mean_position(1)-box_radius) (mean_position(2)-box_radius) ...
-        (2*box_radius) (2*box_radius)];
-    
-    %remove foreground smaller than 100 pixels
-    bw = bwareaopen(bw, 100);
-    
-    %PixelID 1 = [1,1], 2 = [2, 1]
-    CC = bwconncomp(bw);
-    
-    for k=1:length(CC.PixelIdxList)
-        if length(CC.PixelIdxList{k}) > 0.3*size(examscript, 1)*size(examscript, 2)
-           bw(CC.PixelIdxList{k}) = 0; 
+            
+    if length(matches(:, 1)) > 2
+        
+        [num_groups, num] = find_optimal_num_match_pts(matches);
+        
+        matches_cell = split_matches(matches, num_groups, num);
+        
+        [tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
+
+        examscript = imwarp(examscript,tform);
+
+        [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
+
+        if length(matches) == 0
+            [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
         end
-    end
-    
-    %pixlID = find_crest_CC(bw, CC, rect);
-    
-    stats = [regionprops(bw); regionprops(not(bw))];
-    
-    stats2 = {};
-    inserted = 0;
-    
-    for r = 1:length(stats)
-        rect_area = stats(r).BoundingBox(3)*stats(r).BoundingBox(4);
-        if rect_area < (0.15 * size(examscript, 1) * size(examscript, 2))
-            if rectint(stats(r).BoundingBox, rect) > 0
-                inserted = inserted + 1;
-                stats2{inserted} = stats(r);
+
+        %rect = smallest_bounding_rect(examscript, [matches(:, 3) matches(:, 4)]);
+
+        blur = imgaussfilt(examscript,1.5);
+
+        bw = imbinarize(blur);
+        bw = imcomplement(bw);
+
+        %create rect around mean for comparison
+        rect = [(mean_position(1)-box_radius) (mean_position(2)-box_radius) ...
+            (2*box_radius) (2*box_radius)];
+
+        %remove foreground smaller than 100 pixels
+        bw = bwareaopen(bw, 100);
+
+        %PixelID 1 = [1,1], 2 = [2, 1]
+        CC = bwconncomp(bw);
+
+        for k=1:length(CC.PixelIdxList)
+            if length(CC.PixelIdxList{k}) > 0.3*size(examscript, 1)*size(examscript, 2)
+               bw(CC.PixelIdxList{k}) = 0; 
             end
         end
-    end
-    
-    max_area = 0;
-    for r = 1:length(stats2)
-        if max_area < stats2{r}.Area
-            max_area = stats2{r}.Area;
-            rect = stats2{r}.BoundingBox;
-        end
-    end
-    
-    %Remove Locations Outside of RECT
-    %matches = [templateX templateY targetX targetY]
-    boxed_matches = [];
 
-    for m=1:length(matches(:, 1))
-        point = [matches(m, 3) matches(m, 4)];
-        if inRect(rect, point) == true
-           boxed_matches = [boxed_matches; matches(m, :)];
+        %pixlID = find_crest_CC(bw, CC, rect);
+
+        stats = [regionprops(bw); regionprops(not(bw))];
+
+        stats2 = {};
+        inserted = 0;
+
+        for r = 1:length(stats)
+            rect_area = stats(r).BoundingBox(3)*stats(r).BoundingBox(4);
+            if rect_area < (0.15 * size(examscript, 1) * size(examscript, 2))
+                if rectint(stats(r).BoundingBox, rect) > 0
+                    inserted = inserted + 1;
+                    stats2{inserted} = stats(r);
+                end
+            end
         end
+
+        max_area = 0;
+        for r = 1:length(stats2)
+            if max_area < stats2{r}.Area
+                max_area = stats2{r}.Area;
+                rect = stats2{r}.BoundingBox;
+            end
+        end
+
+        %Remove Locations Outside of RECT
+        %matches = [templateX templateY targetX targetY]
+        boxed_matches = [];
+
+        for m=1:length(matches(:, 1))
+            point = [matches(m, 3) matches(m, 4)];
+            if inRect(rect, point) == true
+               boxed_matches = [boxed_matches; matches(m, :)];
+            end
+        end
+
+        if length(boxed_matches) > 0
+            rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
+        else 
+            s.flag = 1;
+        end
+        examnum_rect = find_examnum_rect(rect);    
+        grades_rect = find_grades_rect(rect);
+
+        s.cropped_examnum = imcrop(examscript, examnum_rect);
+        s.cropped_grades = imcrop(examscript, grades_rect);
+        exam_info{i} = s;
+
+        figure(1); imshow(s.cropped_examnum);
+        figure(2); imshow(s.cropped_grades);
     end
     
-    if length(boxed_matches) > 0
-        rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
-    else 
-        s.flag = 1;
-    end
-    examnum_rect = find_examnum_rect(rect);    
-    grades_rect = find_grades_rect(rect);
-    
-    s.cropped_examnum = imcrop(examscript, examnum_rect);
-    s.cropped_grades = imcrop(examscript, grades_rect);
-    exam_info{i} = s;
-end
+%end
     
 
 
@@ -191,8 +203,8 @@ function [rect] = find_examnum_rect(crest_rect)
     %y1const = 1.7189;
     %x2const = 5.8187;
     %y2const = 2.253;
-    x1const = 2.2;
-    y1const = 1.62;
+    x1const = 2;
+    y1const = 1.3;
     x2const = 6.6;
     y2const = 2.3;
     
@@ -213,9 +225,9 @@ function [rect] = find_grades_rect(crest_rect)
     %x2const = 11.9176;
     %y2const = 8.6706;
     
-    x1const = 9.3;
-    y1const = 3.9;
-    x2const = 13.2;
+    x1const = 8.2;
+    y1const = 3.6;
+    x2const = 13;
     y2const = 8.4;
     
     x = crest_rect(1) + x1const*crest_rect(3);
@@ -224,6 +236,117 @@ function [rect] = find_grades_rect(crest_rect)
     y2 = crest_rect(2) + y2const*crest_rect(4);
     
     rect = [x y (x2-x) (y2-y)];
+
+end
+
+function [num_groups, num] = find_optimal_num_match_pts(matches)
+%function figures out the optimal way to split the matches 
+%before generating multiple affine transforms and RANSACING
+
+
+    len = length(matches(:, 1));
+    num = len;
+    num_groups = 1;
+    
+    if len < 8
+        return;
+    end
+    
+    if rem(len, 8) == 0 
+        num = 8;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 9) == 0
+        num = 9;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 10) == 0
+        num = 10;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 11) == 0
+        num = 11;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 12) == 0
+        num = 12;
+        num_groups = len/num;
+        return;
+    end
+    
+    if rem(len, 8) > 5
+        num = 8;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 9) > 5
+        num = 9;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 10) > 5
+        num = 10;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 11) > 5
+        num = 11;
+        num_groups = len/num;
+        return;
+    end
+    if rem(len, 12) > 5
+        num = 12;
+        num_groups = len/num;
+        return;
+    end
+    
+end
+
+function [cell] = split_matches(matches, num_groups, num)
+    
+    insert = 1;
+    cell = {};
+    
+    len = length(matches(:,1));
+    
+        %return if just one even group
+        if num_groups == 1
+           cell{insert} = matches;
+        end
+        
+        indices = [1:len]; %indices to sample
+        
+        %pick random samples
+        for i=1:num_groups
+            random_sample_indices = datasample(indices, num);
+            
+            new_matches = [];
+            %create new match array remove sample indices
+            for j=1:length(random_sample_indices)
+                new_matches = [new_matches; matches(random_sample_indices(j), :)];
+                indices = indices(indices~=random_sample_indices(j));
+            end
+            
+            cell{insert} = new_matches;
+            insert = insert + 1;
+        end
+        
+    if length(indices) < 1
+        return
+    end
+    
+    fprintf('Length: %d \n',length(indices))
+
+    
+    new_matches = [];
+    for j=1:length(indices)
+        new_matches = [new_matches; matches(indices(j), :)];
+    end
+    cell{insert} = new_matches;
 
 end
 
