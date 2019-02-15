@@ -32,8 +32,8 @@ trinity = rgb2gray(trinity);
 box_radius = 35;
 exam_info = {};
 
-%for i=1:length(examscripts)
-    i=4;
+for i=1:length(examscripts)
+
     fprintf('\n Analysing Image %d / %d \n\n', i, length(examscripts));
     
     s.original = examscripts{i};
@@ -51,12 +51,21 @@ exam_info = {};
             
     if length(matches(:, 1)) > 2
         
+        %split matches
         [num_groups, num] = find_optimal_num_match_pts(matches);
-        
         matches_cell = split_matches(matches, num_groups, num);
         
-        [tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
-
+        affine_transforms = {};
+        
+        for a=1:length(matches_cell)
+            curr_matches = matches_cell{a};
+            [tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([curr_matches(:, 3) curr_matches(:, 4)],[curr_matches(:, 1) curr_matches(:, 2)],'affine');
+            affine_transforms{a} = tform;
+        end
+        
+        tform = median_affine(affine_transforms);
+        
+        %[tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
         examscript = imwarp(examscript,tform);
 
         [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
@@ -136,11 +145,9 @@ exam_info = {};
         s.cropped_grades = imcrop(examscript, grades_rect);
         exam_info{i} = s;
 
-        figure(1); imshow(s.cropped_examnum);
-        figure(2); imshow(s.cropped_grades);
     end
     
-%end
+end
     
 
 
@@ -349,4 +356,28 @@ function [cell] = split_matches(matches, num_groups, num)
     cell{insert} = new_matches;
 
 end
+
+function [tform] = median_affine(affine_cell)
+    %function returns affine transform with smallest Euclidean distance to
+    %all other transforms
+    min_tot_distance = 999999999999999999999;
+    tform = affine_cell{1};
+        
+        for i=1:length(affine_cell)
+            dist = 0;
+            curr_tform = affine_cell{i};
+            for j=1:length(affine_cell)
+                if i~=j
+                    compare_tform = affine_cell{j};
+                    dist = dist + norm(curr_tform.T - compare_tform.T);
+                end
+            end
+            
+            if min_tot_distance > dist
+                tform = curr_tform;
+                min_tot_distance = dist;
+            end
+        end
+end
+
 
