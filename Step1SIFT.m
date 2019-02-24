@@ -21,7 +21,10 @@ fprintf('Total Number of Frames: %d \n', numFrames);
 %sample a frame every 0.1 seconds
 dist_between_frame_samples = floor((videoObj.FrameRate / 10)); 
 
-min_match_thresh_page_turn = 5;
+min_match_thresh_page_turn = 15;
+
+%init difference matrix between neightbour frames
+difference = zeros(1, numFrames); 
 
 %init difference matrix between neightbour frames
 sift_matches = zeros(2, floor(numFrames/dist_between_frame_samples)+1); 
@@ -31,21 +34,23 @@ array_index = 1;
 while hasFrame(videoObj)
    
     currFrame = readFrame(videoObj); 
+        
+        if rem(frame, dist_between_frame_samples) == 0
+
+           currFrame = rgb2gray(currFrame);
+
+           [num, locs, mean_position, relevant_matches, matches] = match(trinity, currFrame, false, 0.5);
+           close all
+
+           sift_matches(1, array_index) = frame;
+           sift_matches(2, array_index) = length(matches); 
+           array_index = array_index + 1;
+
+        end
     
-    if rem(frame, dist_between_frame_samples) == 0
-
-       currFrame = rgb2gray(currFrame);
-
-       [num, locs, mean_position, relevant_matches, matches] = match(trinity, currFrame, false, 0.5);
-       close all
-
-       sift_matches(1, array_index) = frame;
-       sift_matches(2, array_index) = length(matches); 
-       array_index = array_index + 1;
-   
-    end
-   
    frame = frame + 1;
+   %prevprevFrame = prevFrame;
+   %prevFrame = currFrame;
    
    if ( rem(frame, 25) == 0) 
      clc;
@@ -82,7 +87,7 @@ end
 
 figure(1)
 plot(sift_matches(1, :), sift_matches(2, :))
-title('Timeline Of MSE of Frames')
+title('Timeline Of SIFT matches by frame')
 xlabel('Frame')
 ylabel('SIFT Matches')
 
@@ -93,7 +98,7 @@ frame = 1;
 inserted = 1;
 while hasFrame(videoObj)
    
-    currFrame = readFrame(videoObj); 
+    currFrame = readFrame(videoObj);    
     
     if ismember(frame, frames_to_extract(1, :)) 
     
