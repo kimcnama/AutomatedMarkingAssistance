@@ -67,6 +67,9 @@ for i=1:length(examscripts)
         
         %[tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
         examscript = imwarp(examscript,tform);
+        color_examscript = imwarp(s.original,tform);
+        
+        imshow(color_examscript);
 
         [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
 
@@ -141,8 +144,8 @@ for i=1:length(examscripts)
         examnum_rect = find_examnum_rect(rect);    
         grades_rect = find_grades_rect(rect);
 
-        s.cropped_examnum = imcrop(examscript, examnum_rect);
-        s.cropped_grades = imcrop(examscript, grades_rect);
+        s.cropped_examnum = imcrop(color_examscript, examnum_rect);
+        s.cropped_grades = imcrop(color_examscript, grades_rect);
         exam_info{i} = s;
 
     end
@@ -323,6 +326,7 @@ function [cell] = split_matches(matches, num_groups, num)
         %return if just one even group
         if num_groups == 1
            cell{insert} = matches;
+           return
         end
         
         indices = [1:len]; %indices to sample
@@ -338,8 +342,10 @@ function [cell] = split_matches(matches, num_groups, num)
                 indices = indices(indices~=random_sample_indices(j));
             end
             
+            
             cell{insert} = new_matches;
             insert = insert + 1;
+            
         end
         
     if length(indices) < 1
@@ -347,7 +353,15 @@ function [cell] = split_matches(matches, num_groups, num)
     end
     
     fprintf('Length: %d \n',length(indices))
-
+    
+    if length(indices) < 5
+       new_matches = cell{insert-1};
+       for j=1:length(indices)
+            new_matches = [new_matches; matches(indices(j), :)];
+       end
+        cell{insert-1} = new_matches;
+        return
+    end
     
     new_matches = [];
     for j=1:length(indices)
