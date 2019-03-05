@@ -1,12 +1,22 @@
-rectA_contained_in_rectB(stats2{4}.BoundingBox, stats2{3}.BoundingBox)
+delete_dir_contents('~/junk')
 
-function [bool] = rectA_contained_in_rectB(rectA, rectB)
-    bool = false;
-    
-    %check x's
-    if rectA(1) > rectB(1) && (rectA(1)+rectA(3)) < (rectB(1)+rectB(3))
-        if rectA(2) > rectB(2) && (rectA(2)+rectA(4)) < (rectB(2)+rectB(4))
-            bool = true;
-        end
+
+function delete_dir_contents(myFolder)
+
+    if ~isdir(myFolder)
+      errorMessage = sprintf('Error: The following folder does not exist:\n%s', myFolder);
+      uiwait(warndlg(errorMessage));
+      return;
     end
+    
+    % Get a list of all files in the folder with the desired file name pattern.
+    filePattern = fullfile(myFolder, '*.*'); % Change to whatever pattern you need.
+    theFiles = dir(filePattern);
+    for k = 1 : length(theFiles)
+      baseFileName = theFiles(k).name;
+      fullFileName = fullfile(myFolder, baseFileName);
+      fprintf(1, 'Now deleting %s\n', fullFileName);
+      delete(fullFileName);
+    end
+
 end

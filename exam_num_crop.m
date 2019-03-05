@@ -1,6 +1,9 @@
 close all
 clc
 
+root_path_write_exam_nums = '~/mai_project_media/exam_numbers/';
+root_path_write_unkown_scripts = '~/mai_project_media/unknown_scripts/';
+
 %ground truth = [520 527 1122-520 612-527]
 aspect_ratio = (1122-520)/(612-527); %width/height
 
@@ -67,100 +70,124 @@ close all
 for i=1:length(exam_info) 
 %i=3;
 
-    %if exam_info{i}.flag == 0
+    if exam_info{i}.flag == 0
     
         exam_number = exam_info{i}.cropped_examnum2;
         
         BW = ~imbinarize(exam_number);
         
         %DETECT HOUGH LINES
-    [H,T,R] = hough(BW);
-    
-    P  = houghpeaks(H,5,'threshold',ceil(0.3*max(H(:))));
-    x = T(P(:,2)); y = R(P(:,1));
-    
-    lines = houghlines(BW,T,R,P,'FillGap',2,'MinLength',10);
-    max_len = 0;
-    max_theta = 0;
-    for k = 1:length(lines)
-       xy = [lines(k).point1; lines(k).point2];
+        [H,T,R] = hough(BW);
 
-       % Determine the endpoints of the longest line segment
-       len = norm(lines(k).point1 - lines(k).point2);
-       if ( len > max_len)
-          max_len = len;
-          xy_long = xy;
-          max_theta = lines(k).theta;
-       end
-    end 
-    
-    gray_exam_number = imrotate(exam_number, abs(max_theta) -90 ,'bilinear', 'loose');
-    exam_number = imrotate(BW, abs(max_theta) -90 ,'bilinear', 'loose');
-    
-    stats = [regionprops(exam_number); regionprops(not(exam_number))];
-    % show the image and draw the detected rectangles on it
-    
-    [avoid_rects_i, stats] = largest_two_areas(stats);
-    
-    stats2={};
-    inserted = 1;
-    tot_pic_area = size(exam_number, 1)*size(exam_number, 2);
-    
-    %x_diff/y_diff = 116/66
-    aspect_ratio = 1.758;
-    
-    for r=1:length(stats)
-        if stats(r).Area < 0.9*tot_pic_area
-            if ~(r == avoid_rects_i(1) || r == avoid_rects_i(2))
-                ar = stats(r).BoundingBox(3)/stats(r).BoundingBox(4);
-                if ar < 1.1*aspect_ratio && ar > 0.7*aspect_ratio
-                    stats2{inserted} = stats(r);
-                    inserted = inserted + 1;
+        P  = houghpeaks(H,5,'threshold',ceil(0.3*max(H(:))));
+        x = T(P(:,2)); y = R(P(:,1));
+
+        lines = houghlines(BW,T,R,P,'FillGap',2,'MinLength',10);
+        max_len = 0;
+        max_theta = 0;
+        for k = 1:length(lines)
+           xy = [lines(k).point1; lines(k).point2];
+
+           % Determine the endpoints of the longest line segment
+           len = norm(lines(k).point1 - lines(k).point2);
+           if ( len > max_len)
+              max_len = len;
+              xy_long = xy;
+              max_theta = lines(k).theta;
+           end
+        end 
+
+        gray_exam_number = imrotate(exam_number, abs(max_theta) -90 ,'bilinear', 'loose');
+        exam_number = imrotate(BW, abs(max_theta) -90 ,'bilinear', 'loose');
+
+        stats = [regionprops(exam_number); regionprops(not(exam_number))];
+        % show the image and draw the detected rectangles on it
+
+        [avoid_rects_i, stats] = largest_two_areas(stats);
+
+        stats2={};
+        inserted = 1;
+        tot_pic_area = size(exam_number, 1)*size(exam_number, 2);
+
+        %x_diff/y_diff = 116/66
+        aspect_ratio = 1.758;
+
+        for r=1:length(stats)
+            if stats(r).Area < 0.9*tot_pic_area
+                if ~(r == avoid_rects_i(1) || r == avoid_rects_i(2))
+                    ar = stats(r).BoundingBox(3)/stats(r).BoundingBox(4);
+                    if ar < 1.1*aspect_ratio && ar > 0.7*aspect_ratio
+                        stats2{inserted} = stats(r);
+                        inserted = inserted + 1;
+                    end
                 end
             end
         end
-    end
-    
-    %remove rects that are completely inside other rects
-    stats={};
-    inserted = 1;
-    
-    for r=1:length(stats2)
-        in_another_rect = false;
-       for rr=1:length(stats2)
-          if r ~= rr
-              if rectA_contained_in_rectB(stats2{r}.BoundingBox, stats2{rr}.BoundingBox) == true
-                  in_another_rect = true;
-              end
-          end
-       end
-       if in_another_rect == false
-           stats{inserted} = stats2{r};
-           inserted = inserted + 1;
-       else
-           disp('Rect lay in another rect so ignored')
-       end
-    end
-    
-    imshow(exam_number); 
-    hold on;
 
-    for r = 1:length(stats)        
-            rectangle('Position', stats{r}.BoundingBox, ...
-            'Linewidth', 3, 'EdgeColor', 'r', 'LineStyle', '--');
-    end 
-   
-   pause
-   close all
-   
-   if length(stats) < 5
-      exam_info{i}.flag = 1;
-      fprintf('Flag turned on for index: %d \n', i);
-   else
+        %remove rects that are completely inside other rects
+        stats={};
+        inserted = 1;
+
+        for r=1:length(stats2)
+            in_another_rect = false;
+           for rr=1:length(stats2)
+              if r ~= rr
+                  if rectA_contained_in_rectB(stats2{r}.BoundingBox, stats2{rr}.BoundingBox) == true
+                      in_another_rect = true;
+                  end
+              end
+           end
+           if in_another_rect == false
+               stats{inserted} = stats2{r};
+               inserted = inserted + 1;
+           else
+               disp('Rect lay in another rect so ignored')
+           end
+        end
+
+        imshow(exam_number); 
+        hold on;
+
+        for r = 1:length(stats)        
+                rectangle('Position', stats{r}.BoundingBox, ...
+                'Linewidth', 3, 'EdgeColor', 'r', 'LineStyle', '--');
+        end 
+
        
-   end
-   
-   %end
+       close all
+        
+       if length(stats) < 5 
+          %exam_info{i}.flag = 1;
+          fprintf('Flag turned on for index: %d \n', i);
+       elseif length(stats) > 5
+          %exam_info{i}.flag = 1;
+          fprintf('Flag turned on for index: %d , too many rects detected \n', i);
+       else
+           delete_dir_contents(root_path_write_exam_nums);
+           path = strcat(root_path_write_exam_nums, 'examscript', int2str(i), ...
+                  '/examnums');
+           mkdir(path);
+           for write_iteration=1:5
+              %loop through images 
+              ind = find_leftmost_digit(stats);
+              num = imcrop(gray_exam_number, stats{ind}.BoundingBox);
+              num = imresize(num, [28 28]);
+              stats(ind) = [];
+              file_name = strcat('/', int2str(write_iteration), '.png');
+              full_path = strcat(path, file_name);
+              
+              imwrite(num, full_path);          
+           end
+           
+       end
+        
+    end
+    
+    if exam_info{i}.flag == 1
+       
+        %Write out code to write unsure files here
+        
+    end
 end
 
 function [vector, stats] = largest_two_areas(stats)
@@ -192,4 +219,38 @@ function [bool] = rectA_contained_in_rectB(rectA, rectB)
     end
 end
 
+function delete_dir_contents(myFolder)
 
+    if ~isdir(myFolder)
+      errorMessage = sprintf('Error: The following folder does not exist:\n%s', myFolder);
+      uiwait(warndlg(errorMessage));
+      return;
+    end
+    
+    % Get a list of all files in the folder with the desired file name pattern.
+    filePattern = fullfile(myFolder, '*.*'); % Change to whatever pattern you need.
+    theFiles = dir(filePattern);
+    for k = 1 : length(theFiles)
+      baseFileName = theFiles(k).name;
+      fullFileName = fullfile(myFolder, baseFileName);
+      fprintf(1, 'Now deleting %s\n', fullFileName);
+      delete(fullFileName);
+    end
+
+end
+
+function [i] = find_leftmost_digit(stats)
+    i=1;
+    if length(stats) < 2
+        return;
+    end
+    
+    min = stats{1}.BoundingBox(1);
+    for j=2:length(stats)
+        if min > stats{j}.BoundingBox(1) 
+            i=j;
+            min = stats{j}.BoundingBox(1);
+        end
+    end
+
+end
