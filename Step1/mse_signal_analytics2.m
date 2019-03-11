@@ -1,7 +1,9 @@
 close all;
 
+frame_rate = videoObj.FrameRate;
+
 diff_fil5 = apply_median_filter(difference, 5);
-diff_fil7 = apply_median_filter(difference, 7);
+diff_fil7 = apply_median_filter(difference, frame_rate-1);
 sub_diff = abs(difference - diff_fil5);
 
 %timeline of MSE 
@@ -20,7 +22,7 @@ ylabel('MSE')
 
 subplot(4,1,3)
 plot(1:length(diff_fil7), diff_fil7)
-title('Timeline Of MSE of Frames (Median Filter=7)')
+title('Timeline Of MSE of Frames (Median Filter=1 second)')
 xlabel('Frame')
 ylabel('MSE')
 
@@ -34,7 +36,7 @@ figure;
 
 subplot(4,1,1)
 plot(1:length(diff_fil7), diff_fil7)
-title('Timeline Of MSE of Frames (Median Filter=7)')
+title('Timeline Of MSE of Frames (Median Filter=1 second)')
 xlabel('Frame')
 ylabel('MSE')
 hold on 
@@ -86,4 +88,29 @@ end
 
 figure
 plot(1:length(diff_fil7_topped), diff_fil7_topped);
+
+
+[pks,locs] = findpeaks(diff_fil7);
+total_peak_vals = 0;
+
+for i=1:length(locs)
+    
+    total_peak_vals = total_peak_vals + difference(locs(i));
+    disp(i)
+    
+end
+
+mean_peak_vals = total_peak_vals/length(locs);
+
+T = mean_peak_vals / 2;
+ 
+figure;
+plot(1:length(difference), difference)
+title('Timeline Of MSE of Frames')
+xlabel('Frame')
+ylabel('MSE')
+hold on 
+line([1, length(diff_fil7)], [mean_peak_vals,mean_peak_vals]);
+line([1, length(diff_fil7)], [T,T]);
+hold off
 
