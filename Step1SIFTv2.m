@@ -87,4 +87,3 @@ while hasFrame(videoObj)
     end
 end
 
-save()
