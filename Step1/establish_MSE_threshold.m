@@ -10,7 +10,7 @@ end
 
 diff_fil = apply_median_filter(difference, frame_rate);
 
-[pks,locs] = findpeaks(diff_fil7);
+[pks,locs] = findpeaks(diff_fil);
 total_peak_vals = 0;
 
 for i=1:length(locs)
@@ -50,3 +50,5 @@ line([1, length(difference)], [T,T], 'Color','red');
  %   line([locs(i), locs(i)], [1,max(difference)], 'Color','red');
 %end
 hold off
+
+diff_fil = [T+1 diff_fil];

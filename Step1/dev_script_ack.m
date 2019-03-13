@@ -3,7 +3,7 @@ clc;
 clear all;
 
 %read in video file
-videofile = '~/mai_project_media/test_script3.mp4';
+videofile = '~/mai_project_media/test_script2.mp4';
 %videofile = 'video_cutted.avi';
 templatefile = '~/mai_project_media/cropped_template.jpg';
 

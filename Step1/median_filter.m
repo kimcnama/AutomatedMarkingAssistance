@@ -1,5 +1,7 @@
 function [med] = median_filter(x, index, window_size)
 
+%odd 
+
 len = length(x);
 
 if index < 0 || index > len
@@ -33,3 +35,5 @@ end
 
 window = sort(window);
 med = median(window);
+
+end
