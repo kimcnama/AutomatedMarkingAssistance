@@ -16,15 +16,7 @@ function [J] = insert_padding(I, n)
     A = zeros(1, rows);
     
     for i=1:n
-        J = [A;J];
-        J = [J;A];
-    end
-    
-    [cols, rows] = size(J);
-    A = zeros(cols, 1);
-    
-    for i=1:n
-        J = [A J];
-        J = [J A];
-    end
+
+        
+   
 end
