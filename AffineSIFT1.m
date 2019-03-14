@@ -35,121 +35,128 @@ exam_info = {};
 for i=1:length(examscripts)
 
     fprintf('\n Analysing Image %d / %d \n\n', i, length(examscripts));
-    
-    s.original = examscripts{i};
-    s.flag = 0;
-    examscript = rgb2gray(s.original);
-    
-    %matches = [j i ...]
-    %mean_position = [i j]
-    [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
-    
-    if length(matches) == 0
-        [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
-    end
-    
-            
-    if length(matches(:, 1)) > 2
-        
-        %split matches
-        [num_groups, num] = find_optimal_num_match_pts(matches);
-        matches_cell = split_matches(matches, num_groups, num);
-        
-        affine_transforms = {};
-        
-        for a=1:length(matches_cell)
-            curr_matches = matches_cell{a};
-            [tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([curr_matches(:, 3) curr_matches(:, 4)],[curr_matches(:, 1) curr_matches(:, 2)],'affine');
-            affine_transforms{a} = tform;
-        end
-        
-        tform = median_affine(affine_transforms);
-        
-        %[tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
-        examscript = imwarp(examscript,tform);
-        color_examscript = imwarp(s.original,tform);
-        
-        imshow(color_examscript);
+    try
+        s.original = examscripts{i};
+        s.flag = 0;
+        examscript = rgb2gray(s.original);
 
+        %matches = [j i ...]
+        %mean_position = [i j]
         [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
 
         if length(matches) == 0
             [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
         end
 
-        %rect = smallest_bounding_rect(examscript, [matches(:, 3) matches(:, 4)]);
 
-        blur = imgaussfilt(examscript,1.5);
+        if length(matches(:, 1)) > 2
 
-        bw = imbinarize(blur);
-        bw = imcomplement(bw);
+            %split matches
+            [num_groups, num] = find_optimal_num_match_pts(matches);
+            matches_cell = split_matches(matches, num_groups, num);
 
-        %create rect around mean for comparison
-        rect = [(mean_position(1)-box_radius) (mean_position(2)-box_radius) ...
-            (2*box_radius) (2*box_radius)];
+            affine_transforms = {};
 
-        %remove foreground smaller than 100 pixels
-        bw = bwareaopen(bw, 100);
-
-        %PixelID 1 = [1,1], 2 = [2, 1]
-        CC = bwconncomp(bw);
-
-        for k=1:length(CC.PixelIdxList)
-            if length(CC.PixelIdxList{k}) > 0.3*size(examscript, 1)*size(examscript, 2)
-               bw(CC.PixelIdxList{k}) = 0; 
+            for a=1:length(matches_cell)
+                curr_matches = matches_cell{a};
+                [tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([curr_matches(:, 3) curr_matches(:, 4)],[curr_matches(:, 1) curr_matches(:, 2)],'affine');
+                affine_transforms{a} = tform;
             end
-        end
 
-        %pixlID = find_crest_CC(bw, CC, rect);
+            tform = median_affine(affine_transforms);
 
-        stats = [regionprops(bw); regionprops(not(bw))];
+            %[tform,inlierPtsDistorted,inlierPtsOriginal] = estimateGeometricTransform([matches(:, 3) matches(:, 4)],[matches(:, 1) matches(:, 2)],'affine');
+            examscript = imwarp(examscript,tform);
+            color_examscript = imwarp(s.original,tform);
 
-        stats2 = {};
-        inserted = 0;
+            imshow(color_examscript);
 
-        for r = 1:length(stats)
-            rect_area = stats(r).BoundingBox(3)*stats(r).BoundingBox(4);
-            if rect_area < (0.15 * size(examscript, 1) * size(examscript, 2))
-                if rectint(stats(r).BoundingBox, rect) > 0
-                    inserted = inserted + 1;
-                    stats2{inserted} = stats(r);
+            [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.5);
+
+            if length(matches) == 0
+                [num, locs, mean_position, relevant_matches, matches] = match(trinity, examscript, false, 0.6);
+            end
+
+            %rect = smallest_bounding_rect(examscript, [matches(:, 3) matches(:, 4)]);
+
+            blur = imgaussfilt(examscript,1.5);
+
+            bw = imbinarize(blur);
+            bw = imcomplement(bw);
+
+            %create rect around mean for comparison
+            rect = [(mean_position(1)-box_radius) (mean_position(2)-box_radius) ...
+                (2*box_radius) (2*box_radius)];
+
+            %remove foreground smaller than 100 pixels
+            bw = bwareaopen(bw, 100);
+
+            %PixelID 1 = [1,1], 2 = [2, 1]
+            CC = bwconncomp(bw);
+
+            for k=1:length(CC.PixelIdxList)
+                if length(CC.PixelIdxList{k}) > 0.3*size(examscript, 1)*size(examscript, 2)
+                   bw(CC.PixelIdxList{k}) = 0; 
                 end
             end
-        end
 
-        max_area = 0;
-        for r = 1:length(stats2)
-            if max_area < stats2{r}.Area
-                max_area = stats2{r}.Area;
-                rect = stats2{r}.BoundingBox;
+            %pixlID = find_crest_CC(bw, CC, rect);
+
+            stats = [regionprops(bw); regionprops(not(bw))];
+
+            stats2 = {};
+            inserted = 0;
+
+            for r = 1:length(stats)
+                rect_area = stats(r).BoundingBox(3)*stats(r).BoundingBox(4);
+                if rect_area < (0.15 * size(examscript, 1) * size(examscript, 2))
+                    if rectint(stats(r).BoundingBox, rect) > 0
+                        inserted = inserted + 1;
+                        stats2{inserted} = stats(r);
+                    end
+                end
             end
-        end
 
-        %Remove Locations Outside of RECT
-        %matches = [templateX templateY targetX targetY]
-        boxed_matches = [];
-
-        for m=1:length(matches(:, 1))
-            point = [matches(m, 3) matches(m, 4)];
-            if inRect(rect, point) == true
-               boxed_matches = [boxed_matches; matches(m, :)];
+            max_area = 0;
+            for r = 1:length(stats2)
+                if max_area < stats2{r}.Area
+                    max_area = stats2{r}.Area;
+                    rect = stats2{r}.BoundingBox;
+                end
             end
+
+            %Remove Locations Outside of RECT
+            %matches = [templateX templateY targetX targetY]
+            boxed_matches = [];
+            if ~isempty(matches)
+                for m=1:length(matches(:, 1))
+                    point = [matches(m, 3) matches(m, 4)];
+                    if inRect(rect, point) == true
+                       boxed_matches = [boxed_matches; matches(m, :)];
+                    end
+                end
+
+                if length(boxed_matches) > 0
+                    rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
+                else 
+                    s.flag = 1;
+                end
+            else 
+                s.flag = 1;
+            end
+            examnum_rect = find_examnum_rect(rect);    
+            grades_rect = find_grades_rect(rect);
+
+            s.cropped_examnum = imcrop(color_examscript, examnum_rect);
+            s.cropped_grades = imcrop(color_examscript, grades_rect);
+            
+
         end
-
-        if length(boxed_matches) > 0
-            rect = smallest_bounding_rect(examscript, [boxed_matches(:, 3) boxed_matches(:, 4)]);
-        else 
-            s.flag = 1;
-        end
-        examnum_rect = find_examnum_rect(rect);    
-        grades_rect = find_grades_rect(rect);
-
-        s.cropped_examnum = imcrop(color_examscript, examnum_rect);
-        s.cropped_grades = imcrop(color_examscript, grades_rect);
-        exam_info{i} = s;
-
+    catch 
+        fprintf('Error at index %d', i)
+        s.flag = 1;
     end
-    
+    exam_info{i} = s;
 end
     
 

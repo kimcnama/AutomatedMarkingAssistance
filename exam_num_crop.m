@@ -7,6 +7,8 @@ root_path_write_unkown_scripts = '~/mai_project_media/unknown_scripts/';
 %ground truth = [520 527 1122-520 612-527]
 aspect_ratio = (1122-520)/(612-527); %width/height
 
+flags = 0;
+
 for j=1:length(exam_info)
 
 close all
@@ -58,6 +60,7 @@ close all
     
     if length(stats2) < 1
         exam_info{j}.flag = 1;
+        flags = flags + 1;
         fprintf('\n flag activated for index: %d \n', j);
     else    
         exam_info{j}.cropped_examnum2 = imcrop(exam_number, stats2{1}.BoundingBox);
@@ -181,7 +184,14 @@ for i=1:length(exam_info)
               file_name = strcat('/', int2str(write_iteration), '.png');
               full_path = strcat(path, file_name);
               
-              imwrite(num, full_path);   
+              figure(1); imshow(num);
+              x='';
+              prompt = 'What is the original value? ';
+              x = input(prompt, 's')
+              
+              file_name = strcat('~/git/AutomatedMarkingAssistance/Step3/extracted_nums/', int2str(i),int2str(write_iteration),'_', x,'.png');
+              %imwrite(num, full_path);   
+              imwrite(num, file_name);   
                 
            end
            
